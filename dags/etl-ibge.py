@@ -51,14 +51,40 @@ def etl_ibge():
     #     print(df)
 
     @task
-    def extrai_api():
-        data_path = '/tmp/dimensao_mesorregioes_mg.csv'
-        url = 'https://servicodados.ibge.gov.br/api/v1/localidades/estados/MG/mesorregioes'
+    def extrai_estacoes_uf(uf):
+        # URL da API do IBGE (exemplo: população estimada por município)
+        url = "https://servicodados.ibge.gov.br/api/v1/bdg/estado/{uf}/estacoes"
+        data_path = '/tmp/estacoes_{uf}.csv'
+
+        # Fazer a solicitação GET para a API
         response = requests.get(url)
-        response_json = json.loads(response.text)
-        df = pd.DataFrame(response_json)[['id','nome']]
-        df.to_csv(data_path, index=False, encoding='utf-8', sep=';')
+
+        # Verificar se a solicitação foi bem-sucedida
+        if response.status_code == 200:
+            # Parse o JSON retornado
+            dados_json = json.loads(response.text)
+            
+            # Verificar a estrutura dos dados
+            print(json.dumps(dados_json, indent=4))
+            
+            # Se os dados forem uma lista de dicionários, carregar diretamente em um DataFrame
+            if isinstance(dados_json, list):
+                df = pd.DataFrame(dados_json)
+            elif isinstance(dados_json, dict):
+                # Se os dados forem um dicionário, converter para uma lista de dicionários
+                # Supondo que o dicionário contém uma chave que tem a lista de dados desejada
+                chave_dados = 'resultados'  # Ajuste esta chave conforme a estrutura da resposta da API
+                df = pd.DataFrame(dados_json[chave_dados])
+            
+            
+            
+            # Salvar o DataFrame em um arquivo CSV
+            df.to_csv(data_path, index=False)
+        else:
+            print(f"Erro ao acessar a API: {response.status_code}")
+            
         return data_path
+
 
     @task
     def upload_to_s3(file_name):
@@ -77,7 +103,7 @@ def etl_ibge():
     # ORQUESTRAÇÃO
 
     # mongo = extrai_mongo()
-    api = extrai_api()
+    api = extrai_estacoes_uf()
     # checagem = data_check(mongo)
     # upmongo = upload_to_s3(mongo)
     upapi = upload_to_s3(api)
