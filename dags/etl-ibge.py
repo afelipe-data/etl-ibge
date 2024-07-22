@@ -8,6 +8,7 @@ import boto3
 from sqlalchemy import create_engine
 from airflow.models import Variable
 
+
 #Pegando as variáveis de ambiente cadastradas no AIRFLOW
 
 aws_access_key_id = Variable.get('aws_access_key_id')
@@ -51,10 +52,10 @@ def etl_ibge():
     #     print(df)
 
     @task
-    def extrai_estacoes_uf(uf):
+    def extrai_estacoes_uf():
         # URL da API do IBGE (exemplo: população estimada por município)
-        url = "https://servicodados.ibge.gov.br/api/v1/bdg/estado/{uf}/estacoes"
-        data_path = '/tmp/estacoes_{uf}.csv'
+        url = "https://servicodados.ibge.gov.br/api/v1/bdg/estado/rj/estacoes"
+        data_path = '/tmp/estacoes_rj.csv'
 
         # Fazer a solicitação GET para a API
         response = requests.get(url)
@@ -63,7 +64,7 @@ def etl_ibge():
         if response.status_code == 200:
             # Parse o JSON retornado
             dados_json = json.loads(response.text)
-            
+
             # Verificar a estrutura dos dados
             print(json.dumps(dados_json, indent=4))
             
@@ -80,17 +81,18 @@ def etl_ibge():
             
             # Salvar o DataFrame em um arquivo CSV
             df.to_csv(data_path, index=False)
+            s3_client.upload_file(data_path, 'etl-ibge', f"{data_path[5:]}")
         else:
             print(f"Erro ao acessar a API: {response.status_code}")
             
-        return data_path
+        
 
 
-    @task
-    def upload_to_s3(file_name):
-        print(f"Got filename: {file_name}")
-        print(f"Got object_name: {file_name[5:]}")
-        s3_client.upload_file(file_name, 'etl-ibge', f"{file_name[5:]}")
+    # @task
+    # def upload_to_s3(file_name):
+    #     print(f"Got filename: {file_name}")
+    #     print(f"Got object_name: {file_name[5:]}")
+    #     s3_client.upload_file(file_name, 'etl-ibge', f"{file_name[5:]}")
     
     # @task
     # def write_to_postgres(csv_file_path):
@@ -106,12 +108,12 @@ def etl_ibge():
     api = extrai_estacoes_uf()
     # checagem = data_check(mongo)
     # upmongo = upload_to_s3(mongo)
-    upapi = upload_to_s3(api)
+    #upapi = upload_to_s3(api)
     # wrmongo = write_to_postgres(mongo)
     # wrapi = write_to_postgres(api)
 
     # checagem >> [upmongo, wrmongo]
-    api >> upapi
+    api
 
 execucao = etl_ibge()
 
