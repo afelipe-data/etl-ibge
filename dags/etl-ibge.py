@@ -64,7 +64,7 @@ def extrai_estacoes_uf(estado):
 
 # Criação da DAG
 with DAG(
-    'Extração estações IBGE - UF',
+    'ExtraçãoestaçõesIBGE-UF',
     default_args={
         'owner': 'Afelipe',
         'depends_on_past': False,
