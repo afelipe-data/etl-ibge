@@ -34,11 +34,14 @@ def extrai_estacoes_uf(estado):
 
     url = f'https://servicodados.ibge.gov.br/api/v1/bdg/estado/{estado}/estacoes'
     data_path = f'/tmp/estacoes_{estado}.csv'
+    bronze_folder = 'etl-ibge/bronze'
+    silver_folder = 'etl-ibge/silver'
+    gold_folder = 'etl-ibge/gold'
 
-    # Fazer a solicitação GET para a API
+# Fazer a solicitação GET para a API
     response = requests.get(url)
 
-    # Verificar se a solicitação foi bem-sucedida
+# Verificar se a solicitação foi bem-sucedida
     if response.status_code == 200:
         # Parse o JSON retornado
         dados_json = json.loads(response.text)
@@ -57,7 +60,7 @@ def extrai_estacoes_uf(estado):
               
         # Salvar o DataFrame em um arquivo CSV
         df.to_csv(data_path, index=False)
-        s3_client.upload_file(data_path, 'etl-ibge', f"{data_path[5:]}")
+        s3_client.upload_file(data_path, 'etl-ibge', f"bronze/{data_path[5:]}")
     else:
         print(f"Erro ao acessar a API: {response.status_code}")
 
@@ -70,15 +73,15 @@ with DAG(
         'depends_on_past': False,
         'email_on_failure': False,
         'email_on_retry': False,
-        'retries': 1,
+        'retries': 2,
     },
     description='Extrai dados da API de estações geológicas do IBGE e salva em um bucket S3',
-    schedule_interval='@daily',
+    schedule_interval=None,
     start_date=days_ago(1),
     tags=['ibge', 's3'],
 ) as dag:
 
-    # Criação da tarefa com Dynamic Task Mapping
+# Criação da tarefa com Dynamic Task Mapping
 
     for estado in estados:
         PythonOperator(
